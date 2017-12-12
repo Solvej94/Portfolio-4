@@ -1,0 +1,246 @@
+---
+title: "Assignment 5 - Meta-analysis of pitch in schizophrenia"
+author: "Riccardo Fusaroli"
+date: "3/7/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Building on the shoulders of giants: meta-analysis
+
+## Questions to be answered
+
+1. What is the current evidence for distinctive patterns of pitch mean and pitch sd in schizophrenia? Report how many papers report quantitative estimates, your method to analyze them, the estimated effect size of the difference (mean effect size and standard error for pitch mean, same for pitch sd) and forest plots representing it.
+
+```{r}
+# Libraries 
+library(pacman)
+p_load(tidyverse,dplyr,ggplot2,readr,metafor,lme4, lmerTest,cran)
+
+# working directory and data 
+setwd("C:/Users/Bruger/Google Drev/Cognitive Science/Experimental methods 3/assignment 5")
+
+Data <- read.csv("C:/Users/Bruger/Google Drev/Cognitive Science/Experimental methods 3/assignment 5/Data.csv", sep=";")
+View(Data)
+
+```
+
+```{r}
+
+## META ANALYSIS
+sum(Data$SampleSizeSchizo)
+# 518
+sum(Data$SampleSizeContros, na.rm = T)
+# 216
+
+
+# Mean distribution: calculate effect size (yi) and variance (vi) -> look up
+Escalc1 <- escalc("SMD", n1i = Data$SampleSizeContros, n2i = Data$SampleSizeSchizo, m1i = Data$PitchMeanControls, m2i = Data$PitchMeanSchizo, sd1i = Data$PitchMeanControlsSD, sd2i = Data$PitchMeanSchizoSD, data = Data)
+
+# Mean distribution
+#model lmer
+m1 = lmer(yi ~ 1 +(1|Article),weights = 1/vi,Escalc1,control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m1)
+#estimate = -0.17 
+#stEr = 0.17
+
+
+#model rma
+m2 = rma(yi,vi,data = Escalc1, slab = Article)
+summary(m2)
+#tau^2 (estimated amount of total heterogeneity): 0.0607
+#I^2 (total heterogeneity / total variability):   44.28%
+# estimate = -0.13 
+#std error = 0.19 non significant 
+
+# forest plot
+forest(m2)
+
+# SD distribution: calculate effect size (yi) and variance (vi) -> look up
+Escalc2 <- escalc("SMD", n1i = Data$SampleSizeContros, n2i = Data$SampleSizeSchizo, m1i = Data$PitchSDControls, m2i = Data$PitchSDSchizo, sd1i = Data$PitchSDControlsSD, sd2i = Data$PitchSDSchizoSD, data = Data)
+
+# SD distribution: 
+# model lmer
+m3 = lmer(yi ~ 1 +(1|Article),weights = 1/vi,Escalc2,control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m3)
+# estimate = 0.125
+# std.error = 0.579
+
+m4 = rma(yi,vi,data = Escalc2, slab = Article)
+summary(m4)
+#tau^2 (estimated amount of total heterogeneity): 4.2287 (SE = 2.7324)
+#I^2 (total heterogeneity / total variability):   98.15%
+#estimate = -0.35
+#se = 0.85 non significant 
+forest(m4)
+
+
+```
+
+2. Do the results match your own analysis from Assignment 3? If you add your results to the meta-analysis, do the estimated effect sizes change? Report the new estimates and the new forest plots.
+
+```{r}
+## PREPARE DATA 
+
+A3_data <- read.delim("final_rqa.csv",sep = ",")
+
+# subset control 
+control_data = subset(A3_data, A3_data$diagnosis=="control")
+# find sample size of control 
+SampleSizeContros = length(unique(control_data$participant))
+# control = 59
+
+# subset schizo
+schizo_data = subset(A3_data,A3_data$diagnosis=="schizophrenia")
+# find sample size schizo
+SampleSizeSchizo = length(unique(schizo_data$participant))
+# schizo = 57
+
+# mean pitch of control
+PitchMeanControls = mean(control_data$mean)
+# sd of mean pitch contorl
+PitchMeanControlsSD = sd(control_data$mean)
+
+# mean pitch of schizo
+PitchMeanSchizo = mean(schizo_data$mean)
+# sd of mean pitch schizo
+PitchMeanSchizoSD = sd(schizo_data$mean)
+
+PitchSDControls = mean(control_data$stdDev)
+# mean control sd = 25.6 
+PitchSDControlsSD = sd(control_data$stdDev)
+# sd control sd = 17.9 # how spread the distribution of sd are. how close are the patients 
+
+PitchSDSchizo = mean(schizo_data$stdDev)
+# mean schizo sd = 24.03
+PitchSDSchizoSD = sd(schizo_data$stdDev)
+# sd schizo sd = 36.8
+
+Year = 2017
+
+Article = "A3"
+
+A3_sum = data.frame(Article,Year,SampleSizeContros, SampleSizeSchizo, PitchMeanControls,PitchMeanControlsSD,PitchMeanSchizo,PitchMeanSchizoSD,PitchSDControls,PitchSDControlsSD,PitchSDSchizo,PitchSDSchizoSD)
+
+final_df <- rbind(Data,A3_sum) 
+
+
+```
+
+```{r}
+## CALCULATE EFFECT SIZES AND FOREST PLOT: META ANALYSIS 
+
+
+# Mean distribution: calculate effect size (yi) and variance (vi) -> look up
+Escalc1_final <- escalc("SMD", n1i = final_df$SampleSizeContros, n2i = final_df$SampleSizeSchizo, m1i = final_df$PitchMeanControls, m2i = final_df$PitchMeanSchizo, sd1i = final_df$PitchMeanControlsSD, sd2i = final_df$PitchMeanSchizoSD, data = final_df)
+
+# Mean distribution
+#model lmer
+m5 = lmer(yi ~ 1 +(1|Article),weights = 1/vi,Escalc1_final,control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m5)
+# estimate = -0.194
+# std error = 0.132 
+
+m6 = rma(yi,vi,data = Escalc1_final, slab = Article)
+summary(m6)
+#tau^2 (estimated amount of total heterogeneity): 0.0330 (SE = 0.0677)
+#I^2 (total heterogeneity / total variability):   34.51%
+#estimate = -0.16
+#se = 0.14 non significant 
+
+# forest plot
+forest(m6)
+
+# SD distribution: calculate effect size (yi) and variance (vi) -> look up
+Escalc2_final <- escalc("SMD", n1i = SampleSizeContros, n2i = SampleSizeSchizo, m1i = PitchSDControls, m2i = PitchSDSchizo, sd1i = PitchSDControlsSD, sd2i = PitchSDSchizoSD, data = final_df)
+
+# SD distribution:
+# model lmer 
+m7 <- lmer(yi ~ 1 +(1|Article),weights = 1/vi,Escalc2_final,control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+summary(m7)
+# estimate = 0.11
+# std error = 0.45 
+
+m8 = rma(yi,vi,data = Escalc2_final, slab = Article)
+summary(m8)
+#tau^2 (estimated amount of total heterogeneity): 3.4938 (SE = 2.0651)
+#I^2 (total heterogeneity / total variability):   98.08%
+#estimate = -0.29
+#se=0.71
+
+#forest plot
+forest(m8)
+
+
+
+```
+
+
+3. Assess the quality of the literature: report and comment on heterogeneity of the studies (tau, I2), on publication bias (funnel plot), and on influential studies.
+```{r}
+
+# Heterogenity 
+
+#mean
+summary(m6)
+# overall variance measure
+#tau^2 (estimated amount of total heterogeneity): 0.0330 (SE = 0.0677)
+# variance caused not by whithin study variation. procentage of participants which do not fall within CI of the other studies. 
+#I^2 (total heterogeneity / total variability):   34.51%
+# ratio of observed to whithin study variation
+# Q(df = 6) = 129.5711, p-val < .0001
+
+#sd
+summary(m8)
+# tau^2 (estimated amount of total heterogeneity): 3.4938 (SE = 2.0651)
+# I^2 (total heterogeneity / total variability):   98.08%
+  # -> the studie measures are to different, not comparable. 
+
+# source of heterogentity: influential studies
+#MEAN
+inf_m6 <- influence(m6)
+print(inf_m6)
+plot(inf_m6)
+# influential study: Martinez et al 2015
+
+# SD
+inf_m8 <- influence(m8)
+print(inf_m8)
+plot(inf_m8)
+# influential study: Cohen et al. 2014 
+
+# publication bias 
+
+# funnelplot MEAN
+m6_funnel <- funnel(m6, main = "Random-Effects Model",xlab = "Standardized Mean Difference") 
+
+# rank correlation test MEAN
+ranktest(m6) 
+# Kendall's tau = 0.2000, p = 0.8167
+# -> symetrical variance
+
+# funnelplot SD
+m8_funnel <- funnel(m8, main = "Random-Effects Model",xlab = "Standardized Mean Difference")
+
+# rank correlation test SD
+ranktest(m8)
+# Kendall's tau = 0.0476, p = 1.0000
+# -> symetrical variance!
+
+```
+
+## Tips on the process to follow:
+
+- Download the data on all published articles analyzing pitch in schizophrenia: https://www.dropbox.com/s/pmgw8wzc308so1p/Data.csv?dl=0
+- Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
+ . first try using lmer (to connect to what you know of mixed effects models)
+ . then use rma() (to get some juicy additional statistics)
+
+- Build a forest plot of the results (forest(model))
+ 
+- Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
+
+- Now look at the output of rma() and check tau and I2
